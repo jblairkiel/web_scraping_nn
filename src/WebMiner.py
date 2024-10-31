@@ -1,92 +1,87 @@
-
 from bs4 import BeautifulSoup
 import requests
 from multiprocessing import Pool, Manager
 from tqdm import tqdm
-import re
 from collections import Counter
+import re
 
-from model.EvaluateUrl import EvaluateUrl
-class WebMiner():
-    
-    def __init__(self, start_url: str):
-        self.max_urls = 100
+from src.model.EvaluateUrl import EvaluateUrl
+
+class WebMiner:
+    def __init__(self, start_url, max_urls=100, processes=8):
+        self.start_url = start_url
+        self.urls_to_visit = [self.start_url]
+        self.max_urls = max_urls
+        self.processes = processes
         self.manager = Manager()
-        _start_url = EvaluateUrl(start_url, "")
-        self.visited = self.manager.list([_start_url])
-        
-        self.pool = Pool(processes=4)
-        self.urls_to_visit = [start_url]
-    
-    def collect_html_bodies(self, url: str):
-        response = requests.get(url) 
-        soup = BeautifulSoup(response.content, 'html.parser') 
-        # Extract text from common text tags 
-        tags = ['p', 'span', 'div', 'li'] 
-        text_elements = [] 
-        for tag in tags: 
-            text_elements.extend([element.get_text() for element in soup.find_all(tag)]) 
-        
-        # Combine the text and use a counter to find the most common words 
-        text = ' '.join(text_elements) 
-        word_list = text.split() 
-        word_count = Counter(word_list) 
-        
-        # Filter out common stopwords (you can expand this list) 
-        stopwords = set(['the', 'and', 'a', 'to', 'of', 'in', 'that', 'is', 'for', 'on', 'with', 'as', 'it', 'are', 'was', 'at', 'be', 'by', 'this', 'an']) 
-        filtered_words = {word: count for word, count in word_count.items() if word.lower() not in stopwords} 
-        
-        # Get the top 10 most common words 
-        most_common_words = Counter(filtered_words).most_common(10) 
-        return most_common_words
-    
-    def find_links(self, url):
-        links = []
+        self.visited = self.manager.list([start_url])
+        self.pool = Pool(processes=self.processes)
+        self.pages_data = []
+
+    @staticmethod
+    def fetch_page_data(url):
         try:
             response = requests.get(url, timeout=10)
-        except Exception as ex:
-            print(f"Error visiting: {url}")
-            return links
-        if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            for link in soup.find_all('a', href=True):
-                href = link['href']
-                if 'http' in href and not href.endswith(('.jpg', '.png', '.gif')):
-                    body = self.collect_html_bodies(href)
-                    links.append(EvaluateUrl(href, body))
-        return links
+            tags = ['p', 'span', 'div', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+            text_elements = []
 
-    def is_valid_regex(self, http: str):
-        url_regex = re.compile(
-            r'^(https?://)'  # http or https
-            r'([a-zA-Z0-9.-]+)'  # domain name
-            r'(\.[a-zA-Z]{2,6})'  # top-level domain
-            r'([/a-zA-Z0-9.-]*)*'  # path
-            r'/?$'  # end of string
-        )
-        return bool(url_regex.match(http))
+            for tag in tags:
+                text_elements.extend([element.get_text() for element in soup.find_all(tag)])
 
+            links = [a['href'] for a in soup.find_all('a', href=True) if 'http' in a['href'] and not a['href'].endswith(('.jpg', '.png', '.gif'))]
+
+            text_content = ' '.join(text_elements)
+            return EvaluateUrl(url, body=text_content)
+            #return {'url': url, 'text_content': text_content, 'links': links}
+
+        except requests.exceptions.Timeout:
+            print(f"Request to {url} timed out.")
+            return []#{'url': url, 'text_content': '', 'links': []}
+
+    @staticmethod
     def worker(self, args):
+        results = []
         url, visited = args
-        if self.is_valid_regex(url):
-            links = self.find_links(url)
-            return [link for link in links if link not in visited]
-        else:
-            return []
-
+        if is_valid_regex(url):
+            data = self.fetch_page_data(url)
+            links, text_content = data['links'], data['text_content']
+            results = [link for link in links if link not in visited], {'url': url, 'text_content': text_content}
+        return results
+    
     def mine(self):
-        
-        with tqdm(total=100) as pbar:
+
+        with tqdm(total=self.max_urls) as pbar:
             while self.urls_to_visit and len(self.visited) < self.max_urls:
-                results = self.pool.map(self.worker, [(url, self.visited) for url in self.urls_to_visit])
-                visited_links = [str(link) for link in self.visited]
-                new_urls = [link for links in results for link in links if link not in visited_links]
+                results = self.pool.starmap(self.worker, [(url, self.visited) for url in self.urls_to_visit])
+                new_urls = [link for result in results for link in result[0] if link not in self.visited]
+                self.pages_data.extend([result[1] for result in results])
                 self.visited.extend(new_urls)
-                urls_to_visit = new_urls
-                pbar.update(len(urls_to_visit))
+                self.urls_to_visit = new_urls
+                pbar.update(len(new_urls))
 
         self.pool.close()
         self.pool.join()
-        return self.visited
 
+        for page in self.pages_data:
+            page['most_common_words'] = self.most_common_words(page['text_content'])
+
+        return self.pages_data
+
+def is_valid_regex(http: str):
+    url_regex = re.compile(
+        r'^(https?://)'  # http or https
+        r'([a-zA-Z0-9.-]+)'  # domain name
+        r'(\.[a-zA-Z]{2,6})'  # top-level domain
+        r'([/a-zA-Z0-9.-]*)*'  # path
+        r'/?$'  # end of string
+    )
+    return bool(url_regex.match(http))
+
+@staticmethod
+def most_common_words(text):
+    word_count = Counter(text.split())
+    stopwords = set(['the', 'and', 'a', 'to', 'of', 'in', 'that', 'is', 'for', 'on', 'with', 'as', 'it', 'are', 'was', 'at', 'be', 'by', 'this', 'an'])
+    filtered_words = {word: count for word, count in word_count.items() if word.lower() not in stopwords}
+    return Counter(filtered_words).most_common(10)

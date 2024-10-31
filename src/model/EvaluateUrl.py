@@ -1,4 +1,5 @@
 from enum import StrEnum
+from typing import Any
 import polars as pl
 #import tensorflow as tf
 
@@ -13,6 +14,7 @@ class EvaluateUrl:
         self.body: str = body
         self.evaluated = False
         self.evaluation: EvaluationEnum = EvaluationEnum.NOT_EVALUATED
+        self.most_common_words: Any
 
     def __repr__(self):
         return f"URL({self.url})"
@@ -23,8 +25,8 @@ class EvaluateUrl:
     def to_polars(urls):
         return pl.DataFrame({'urls': [url.url for url in urls]})
 
-    @staticmethod
-    def to_tensorflow(urls):
-        url_list = [url.url for url in urls]
-        dataset = tf.data.Dataset.from_tensor_slices(url_list)
-        return dataset
+    # @staticmethod
+    # def to_tensorflow(urls):
+    #     url_list = [url.url for url in urls]
+    #     dataset = tf.data.Dataset.from_tensor_slices(url_list)
+    #     return dataset
