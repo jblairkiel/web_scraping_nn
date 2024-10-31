@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  </head>
+  <body>
+    <div id="paragraph-container"></div>
+    <button onclick="classifyText('Positive')">Positive</button>
+    <button onclick="classifyText('Negative')">Negative</button>
+    <button onclick="classifyText('Neutral')">Neutral</button>
+
+    <script>
+      let paragraph = "This is a sample paragraph. You can classify this text as Positive, Negative, or Neutral.";
+
+      function setup() {
+        noCanvas();
+        let container = select('#paragraph-container');
+        let p = createP(paragraph);
+        container.child(p);
+      }
+
+      function classifyText(label) {
+        fetch('/classify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            paragraph: paragraph,
+            label: label
+          })
+        }).then(response => response.json())
+          .then(data => alert(`You classified the paragraph as: ${label}`))
+          .catch(error => console.error('Error:', error));
+      }
+    </script>
+  </body>
+</html>
