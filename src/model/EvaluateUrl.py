@@ -25,11 +25,17 @@ class EvalauatedUrlContainer:
     
     def to_parquet(self, file_path):
         # Convert list of objects to DataFrame
-        values = [self.data[key].to_dict() for key in self.data.keys()]
-        polars_df = pl.from_dicts(values)
+        values = []
+        try:
+            for key in self.data.keys():
+                values.append(self.data[key].to_dict() )
+            polars_df = pl.from_dicts(values)
+            # Save Polars DataFrame to Parquet file
+            polars_df.write_parquet(file_path)
+        except Exception as ex: 
+            print("error here")
         
-        # Save Polars DataFrame to Parquet file
-        polars_df.write_parquet(file_path)
+        
 
     def __str__(self):
         print("Data: ")
@@ -45,7 +51,7 @@ class EvaluateUrl:
         self.body: str = body
         self.evaluated = False
         self.evaluation: EvaluationEnum = EvaluationEnum.NOT_EVALUATED
-        self.most_common_words = most_common_words(body)
+        self.most_common_words: Dict[str, str] = most_common_words(body)
 
     def __repr__(self):
         return f"URL({self.url})"
@@ -73,9 +79,9 @@ def most_common_words(text):
     filtered_words = {word: count for word, count in word_count.items() if word.lower() not in stopwords}
     most_common = Counter(filtered_words).most_common(10)
     most_common_dict = {}
-    i = 0
+    i = 1
     for el, _ in most_common:
-        most_common_dict[i] = el
+        most_common_dict[str(i)] = el
         i = i + 1
     return most_common_dict
 
