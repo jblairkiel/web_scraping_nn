@@ -13,12 +13,10 @@ from model.EvaluateUrl import EvaluateUrl, EvalauatedUrlContainer
 
 class WebMiner:
     def __init__(self, start_url, max_urls=100):
-        self.start_url = start_url
-        self.urls_to_visit = [self.start_url]
         self.urls_collected = []
-        self.urls_visited = []
         self.max_urls = max_urls
-        self.evaluted_url_container: EvalauatedUrlContainer = EvalauatedUrlContainer()
+        self.evaluted_url_container: EvalauatedUrlContainer = EvalauatedUrlContainer(start_url)
+        self.urls_visited = []
         self.existing_links_path = Path("visited.parquet")
         if self.existing_links_path.exists():
             self.evaluted_url_container.load(self.existing_links_path)
@@ -60,14 +58,11 @@ class WebMiner:
 
         iter = 0
         with tqdm(total=self.max_urls) as pbar:
-            while self.urls_to_visit and len(self.urls_visited) < self.max_urls:
-                new_url_result_obj: EvaluateUrl = self.worker(self.urls_to_visit[iter])
+            while self.evaluted_url_container.urls_to_visit and len(self.evaluted_url_container.urls_visited) < self.max_urls:
+                new_url_result_obj: EvaluateUrl = self.worker(self.evaluted_url_container.urls_to_visit[iter]) #TODO Error here
                 time.sleep(random.uniform(.3, .9))
                 if new_url_result_obj is not None:
-                    new_urls = new_url_result_obj.links
-                    self.evaluted_url_container.add(new_url_result_obj)
-                    self.urls_visited.append(new_url_result_obj.url)
-                    self.urls_to_visit.extend(new_urls)
+                    self.evaluted_url_container.add_new(new_url_result_obj)
                     pbar.update(1)
                     iter = iter = 1
                 
