@@ -2,3 +2,5 @@
 *.pyc
 *.pycache
 *node_modules*
+*.parquet
+*.html
