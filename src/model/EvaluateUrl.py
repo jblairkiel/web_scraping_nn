@@ -10,27 +10,42 @@ class EvaluationEnum(StrEnum):
     NOT_EVALUATED = "NOT_EVALUATED"
 
 class EvalauatedUrlContainer:
-    def __init__(self, start_url: str):
+    def __init__(self, start_url: str, max_urls: str):
         self.data: Dict[int, EvaluateUrl] = {}
-        self.iter = 0
-        self.urls_to_visit = {}
-        self.urls_visited = []
-        self.urls_to_visit = {self.iter: start_url}
-        self.iter = self.iter + 1
-    
+        self.data_iter = 0
+        self.urls_to_visit_iter = 0
+        self.urls_visited_iter = 0
+        self.urls_visited = {}
+        self.urls_to_visit = {start_url: self.urls_to_visit_iter }
+        self.max_urls = max_urls
+
     def add_new(self, obj):
-        self.data[self.iter] = obj
         new_urls = obj.links
-        existing_urls = [key for key in self.urls_to_visit.keys()]
         for url in new_urls:
-            if url not in existing_urls:
-                self.urls_to_visit[url] = self.iter
-        self.urls_visited.append(obj.url)
-        self.iter = self.iter + 1
+            if url not in self.urls_visited and url not in self.urls_to_visit:
+                self.urls_to_visit[url] = self.urls_to_visit_iter
+
+        #visited so add and remove
+        self.data[self.data_iter] = obj
+        self.data_iter = self.data_iter + 1
+        self.remove_url(obj.url)
+
+        self.urls_visited[obj.url] = self.urls_visited_iter
+        self.urls_visited_iter = self.urls_visited_iter + 1
+
+    def remove_url(self, url: str):
+        if url in self.urls_to_visit:
+            del self.urls_to_visit[url]
 
     def add(self, obj):
-        self.data[self.iter] = obj
-        self.iter = self.iter + 1
+        self.data[self.data_iter] = obj
+        self.data_iter = self.data_iter + 1
+
+    def pop_next_url(self):
+
+        next_url = list(self.urls_to_visit.items())
+        next_url = next_url[0][0]        
+        return next_url
 
     def load(self, existing_links_parquet_path: str):
         df = pl.read_parquet(existing_links_parquet_path)
@@ -55,16 +70,22 @@ class EvalauatedUrlContainer:
         except Exception as ex: 
             print("error here")
         
-        
+    def still_urls_to_visit(self):
+        return len(self.urls_to_visit) > 0 and len(self.urls_visited) < self.max_urls 
 
     def __str__(self):
-        print("Data: ")
+        ret_str = "Data: "
         keys = [key for key in self.data.keys()]
         for cur_key in keys:
+            url = self.data[cur_key].url
+            most_words = self.data[cur_key].most_common_words
             try:
-                print(f"\t{self.data[cur_key].url} - {self.data[cur_key].most_common_words}")
+                ret_str = ret_str + f"\t{url} - {most_words}\n"
             except Exception as ex:
                 print(f"Skipping: {cur_key}")
+
+        ret_str = ret_str + f"Total links: {len(self.urls_visited)}"
+        return ret_str
 
 
 
