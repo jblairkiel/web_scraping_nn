@@ -146,7 +146,7 @@ def get_most_common_words(text):
     word_count = Counter(text.split())
     stopwords = set(['&', 'the', 'and', 'a', 'to', 'of', 'in', 'that', 'is', 'for', 'on', 'with', 'as', 'it', 'are', 'was', 'at', 'be', 'by', 'this', 'an'])
     filtered_words = {word: count for word, count in word_count.items() if word.lower() not in stopwords}
-    most_common = Counter(filtered_words).most_common(10)
+    most_common = Counter(filtered_words).most_common(100)
     most_common_dict = {}
     i = 1
     for el, _ in most_common:
