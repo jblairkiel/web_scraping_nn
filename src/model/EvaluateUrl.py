@@ -13,7 +13,10 @@ class EvalauatedUrlContainer:
     def __init__(self, start_url: str, max_urls: str):
         self.data: Dict[int, EvaluateUrl] = {}
         self.data_iter = 0
+<<<<<<< HEAD
         self.cur_session_urls_to_visit = 0
+=======
+>>>>>>> 58571ae18252571b795ca5b1718f2b37726da02e
         self.urls_to_visit_iter = 0
         self.urls_visited_iter = 0
         self.urls_visited = {}
@@ -29,7 +32,10 @@ class EvalauatedUrlContainer:
         #visited so add and remove
         self.data[self.data_iter] = obj
         self.data_iter = self.data_iter + 1
+<<<<<<< HEAD
         self.cur_session_urls_to_visit = self.cur_session_urls_to_visit + 1
+=======
+>>>>>>> 58571ae18252571b795ca5b1718f2b37726da02e
         self.remove_url(obj.url)
 
         self.urls_visited[obj.url] = self.urls_visited_iter
@@ -91,7 +97,11 @@ class EvalauatedUrlContainer:
         return polars_df
         
     def still_urls_to_visit(self):
+<<<<<<< HEAD
         return len(self.urls_to_visit) > 0 and self.cur_session_urls_to_visit < self.max_urls 
+=======
+        return len(self.urls_to_visit) > 0 and len(self.urls_visited) < self.max_urls 
+>>>>>>> 58571ae18252571b795ca5b1718f2b37726da02e
 
     def __str__(self):
         ret_str = "Data: "
